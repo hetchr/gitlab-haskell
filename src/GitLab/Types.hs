@@ -19,6 +19,7 @@ module GitLab.Types
     ArchiveFormat (..),
     Member (..),
     Namespace (..),
+    Reviewer(..),
     Links (..),
     Owner (..),
     Permissions (..),
@@ -511,6 +512,7 @@ data MergeRequest = MergeRequest
     merge_request_downvotes :: Int,
     merge_request_author :: User,
     merge_request_assignee :: Maybe User,
+    merge_request_reviewers :: [Reviewer],
     merge_request_source_project_id :: Int,
     merge_request_target_project_id :: Int,
     merge_request_labels :: [Text],
@@ -538,6 +540,40 @@ data MergeRequest = MergeRequest
     merge_request_approvals_before_merge :: Maybe Bool -- ?
   }
   deriving (Generic, Show)
+
+data Reviewer = Reviewer
+   { reviewerId :: Int
+   , reviewerName :: Text
+   , reviewerUserName :: Text
+   , reviewerState :: Text
+   , reviewerAvatarUrl :: Text
+   , reviewerWebUrl :: Text
+   }
+  deriving
+    (Show
+    ,Eq
+    ,Generic
+    )
+
+{-
+    "reviewers": [{
+    "id": 2,
+    "name": "Sam Bauch",
+    "username": "kenyatta_oconnell",
+    "state": "active",
+    "avatar_url": "https://www.gravatar.com/avatar/956c92487c6f6f7616b536927e22c9a0?s=80&d=identicon",
+    "web_url": "http://gitlab.example.com//kenyatta_oconnell"
+  }],
+-}
+instance FromJSON Reviewer where
+  parseJSON (Object v) = 
+    Reviewer
+        <$> v .: "id"
+        <*> v .: "name"
+        <*> v .: "username"
+        <*> v .: "state"
+        <*> v .: "avatar_url"
+        <*> v .: "web_url"
 
 -- | TODO actions.
 data TodoAction

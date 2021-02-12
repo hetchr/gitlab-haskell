@@ -81,8 +81,7 @@ library
                 , GitLab.SystemHooks.Types
                 , GitLab.SystemHooks.GitLabSystemHooks
                 , GitLab.SystemHooks.Rules
-  other-modules:
-                  GitLab.WebRequests.GitLabWebCalls
+                , GitLab.WebRequests.GitLabWebCalls
   hs-source-dirs:
                  src
   build-depends:
