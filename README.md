@@ -1,5 +1,7 @@
 # A Haskell library for the GitLab web API
 
+### /!\ This is a fork of [gitlab-haskell](https://gitlab.com/robstewart57/gitlab-haskell)
+
 This library interacts with a GitLab server's API. It supports queries
 about and updates to:
 
