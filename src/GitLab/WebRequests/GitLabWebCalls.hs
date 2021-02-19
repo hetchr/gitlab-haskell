@@ -10,6 +10,7 @@ module GitLab.WebRequests.GitLabWebCalls
     gitlabOne,
     -- gitlabOneIO,
     gitlabWithAttrsOne,
+    gitlabReqJsonOne,
     -- not currently used.
     -- gitlabWithAttrsOneUnsafe,
     gitlabPost,
@@ -71,9 +72,9 @@ gitlabPost urlPath dataBody = do
         ( case parseBSOne (responseBody resp) of
             Just x -> Right (Just x)
             Nothing -> Right Nothing
-            -- Nothing ->
-            --   Left $
-            --     mkStatus 409 "unable to parse POST response"
+          -- Nothing ->
+          --   Left $
+          --     mkStatus 409 "unable to parse POST response"
         )
     else return (Left (responseStatus resp))
 
