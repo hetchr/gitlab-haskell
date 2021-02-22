@@ -14,6 +14,7 @@ module GitLab.WebRequests.GitLabWebCalls
     -- not currently used.
     -- gitlabWithAttrsOneUnsafe,
     gitlabPost,
+    gitlabPostVerbose,
     gitlabPut,
     gitlabDelete,
     gitlabReqText,
@@ -77,6 +78,45 @@ gitlabPost urlPath dataBody = do
           --     mkStatus 409 "unable to parse POST response"
         )
     else return (Left (responseStatus resp))
+
+data PostResult b
+  = ParseFailure Text
+  | RequestSuccess b
+  | HttpFailure Status
+  -- not used RequestFailure Text
+  deriving
+    (Eq, Show)
+
+-- this is a modified version of the original function with
+-- a more expressive result
+gitlabPostVerbose ::
+  (FromJSON b) =>
+  -- | the URL to post to
+  Text ->
+  -- | the data to post
+  Text ->
+  GitLab (PostResult b)
+gitlabPostVerbose urlPath dataBody = do
+  cfg <- serverCfg <$> ask
+  manager <- httpManager <$> ask
+  let url' = url cfg <> "/api/v4" <> urlPath
+  let request' = parseRequest_ (T.unpack url')
+      request =
+        request'
+          { method = "POST",
+            requestHeaders =
+              [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg))],
+            requestBody = RequestBodyBS (T.encodeUtf8 dataBody)
+          }
+  resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
+  if successStatus (responseStatus resp)
+    then
+      return
+        ( case parseBSOne (responseBody resp) of
+            Just x -> RequestSuccess x
+            Nothing -> ParseFailure (T.decodeUtf8 $ C.toStrict $ responseBody resp)
+        )
+    else return (HttpFailure (responseStatus resp))
 
 gitlabPut ::
   FromJSON b =>
