@@ -15,6 +15,7 @@ module GitLab.WebRequests.GitLabWebCalls
     -- gitlabWithAttrsOneUnsafe,
     gitlabPost,
     gitlabPostVerbose,
+    PostResult(..),
     gitlabPut,
     gitlabDelete,
     gitlabReqText,
