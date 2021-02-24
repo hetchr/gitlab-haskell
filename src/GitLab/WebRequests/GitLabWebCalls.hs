@@ -13,9 +13,9 @@ module GitLab.WebRequests.GitLabWebCalls
     gitlabReqJsonOne,
     -- not currently used.
     -- gitlabWithAttrsOneUnsafe,
-    gitlabPost,
-    gitlabPostVerbose,
-    gitlabPostJSON,
+    gitlabPost, -- old one
+    gitlabPostVerbose, -- old one
+    gitlabPostBuilder, -- this is the new one
     PostResult (..),
     gitlabPut,
     gitlabDelete,
@@ -121,15 +121,13 @@ gitlabPostVerbose urlPath dataBody = do
         )
     else return (HttpFailure (responseStatus resp))
 
--- this is a modified version of the original function with
--- a more expressive result
-gitlabPostSafe ::
+gitlabPostBuilder ::
   (FromJSON resBody) =>
   Text ->
-  [(Text, PossibleValue)] ->
+  [FieldBuilder] ->
   GitLab (PostResult resBody)
-gitlabPostSafe urlPath foo = do
-  dataBody <- undefined foo -- TODO
+gitlabPostBuilder urlPath body = do
+  let dataBody = buildFields body
   cfg <- serverCfg <$> ask
   manager <- httpManager <$> ask
   let url' = url cfg <> "/api/v4" <> urlPath
@@ -139,7 +137,7 @@ gitlabPostSafe urlPath foo = do
           { method = "POST",
             requestHeaders =
               [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg))],
-            requestBody = RequestBodyBS (T.encodeUtf8 $ undefined dataBody)
+            requestBody = RequestBodyBS (T.encodeUtf8 dataBody)
           }
   resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
   if successStatus (responseStatus resp)

@@ -1,18 +1,20 @@
+{-# LANGUAGE LambdaCase #-}
+
 module GitLab.New.Utils where
 
+import qualified Data.Aeson as A
+import qualified Data.Aeson.Text as A
 import Data.Text (Text)
+import qualified Data.Text.Lazy as LT
 
-data PossibleValue
-  = Required Value
-  | Optional Value
+type FieldBuilder = (Text, A.Value)
 
-data Value
-  = Pure Text
-  | Str Text
-  | Bool Bool
-  | Num Int
-  | Nullable Value
+buildFields :: [FieldBuilder] -> Text
+buildFields xs = LT.toStrict $ A.encodeToLazyText $ A.object xs
 
+-- this generates a Value
+-- toJSON (Person name age) =
+--    object ["name" .= name, "age" .= age]
 
 -- TODO bring everything from the other files
 -- functions and types
@@ -31,29 +33,27 @@ marshalledQuerySpec = do
       marshalledQuery (eg Required) `shouldBe` expectedResult
       marshalledQuery (eg Optional) `shouldBe` expectedResult
 
-
 -- use this two functions
 -- mkQueryKey
 -- mkQueryValue
 -- unRText :: RText l -> Text
---
 -- QueryFlag (RText 'QueryKey)
--- QueryParam (RText 'QueryKey) (RText 'QueryValue)	
+-- QueryParam (RText 'QueryKey) (RText 'QueryValue)
 
-
--- will be replace with something involving
 -- https://hackage.haskell.org/package/modern-uri-0.3.4.0/docs/Text-URI.html#t:QueryParam
-marshalledQuery :: [(Text, PossibleValue)] -> Text -- this will be Either Text Text
-marshalledQuery xs =
-  -- Looked at some libs for functions like this, didn't find
-  -- anything at first glance but it might exists somewhere;
-  -- don't if it's worthy to go after it.
+
   let tryMarshalling :: [(Text, Either Text Text)] = marshall <$> xs
+
       nameTheErrors :: [Either (Text, Text) (Text, Text)] = nameResult <$> tryMarshalling
+
       giveMeTheErrorsIfWeHaveAny :: Either [(Text, Text)] [(Text, Text)] = sequenceOfSorts nameTheErrors
+
       processTheErrorsAndResults :: Either Text [(Text, Text)] = processErrs giveMeTheErrorsIfWeHaveAny
+
    in case processTheErrorsAndResults of
+
         Left errors -> error (show errors)
+
         Right result -> buildQuery result -- this function is pure for now
   where
     sequenceOfSorts :: [Either (Text, Text) (Text, Text)] -> Either [(Text, Text)] [(Text, Text)]
