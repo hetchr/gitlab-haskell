@@ -34,9 +34,9 @@ import qualified Data.ByteString.Lazy.Char8 as C
 import Data.Either
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import Debug.Trace
 import GitLab.New.Utils
-import qualified Data.Text.Encoding as T
 import GitLab.Types
 import Network.HTTP.Conduit
 import Network.HTTP.Types.Status
@@ -136,8 +136,7 @@ gitlabPostBuilder urlPath body = do
       request =
         request'
           { method = "POST",
-            requestHeaders =
-              [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg))],
+            requestHeaders = [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg)), ("Content-type", "application/json")],
             requestBody = RequestBodyBS (T.encodeUtf8 dataBody)
           }
   resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
