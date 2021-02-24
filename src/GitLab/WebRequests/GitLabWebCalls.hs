@@ -15,7 +15,8 @@ module GitLab.WebRequests.GitLabWebCalls
     -- gitlabWithAttrsOneUnsafe,
     gitlabPost,
     gitlabPostVerbose,
-    PostResult(..),
+    gitlabPostJSON,
+    PostResult (..),
     gitlabPut,
     gitlabDelete,
     gitlabReqText,
@@ -33,6 +34,7 @@ import qualified Data.ByteString.Lazy.Char8 as C
 import Data.Either
 import Data.Text (Text)
 import qualified Data.Text as T
+import GitLab.New.Utils
 import qualified Data.Text.Encoding as T
 import GitLab.Types
 import Network.HTTP.Conduit
@@ -108,6 +110,36 @@ gitlabPostVerbose urlPath dataBody = do
             requestHeaders =
               [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg))],
             requestBody = RequestBodyBS (T.encodeUtf8 dataBody)
+          }
+  resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
+  if successStatus (responseStatus resp)
+    then
+      return
+        ( case parseBSOne (responseBody resp) of
+            Just x -> RequestSuccess x
+            Nothing -> ParseFailure (T.decodeUtf8 $ C.toStrict $ responseBody resp)
+        )
+    else return (HttpFailure (responseStatus resp))
+
+-- this is a modified version of the original function with
+-- a more expressive result
+gitlabPostSafe ::
+  (FromJSON resBody) =>
+  Text ->
+  [(Text, PossibleValue)] ->
+  GitLab (PostResult resBody)
+gitlabPostSafe urlPath foo = do
+  dataBody <- undefined foo -- TODO
+  cfg <- serverCfg <$> ask
+  manager <- httpManager <$> ask
+  let url' = url cfg <> "/api/v4" <> urlPath
+  let request' = parseRequest_ (T.unpack url')
+      request =
+        request'
+          { method = "POST",
+            requestHeaders =
+              [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg))],
+            requestBody = RequestBodyBS (T.encodeUtf8 $ undefined dataBody)
           }
   resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
   if successStatus (responseStatus resp)

@@ -1,5 +1,19 @@
 module GitLab.New.Utils where
 
+import Data.Text (Text)
+
+data PossibleValue
+  = Required Value
+  | Optional Value
+
+data Value
+  = Pure Text
+  | Str Text
+  | Bool Bool
+  | Num Int
+  | Nullable Value
+
+
 -- TODO bring everything from the other files
 -- functions and types
 
@@ -17,17 +31,6 @@ marshalledQuerySpec = do
       marshalledQuery (eg Required) `shouldBe` expectedResult
       marshalledQuery (eg Optional) `shouldBe` expectedResult
 
-
-data PossibleValue
-  = Required Value
-  | Optional Value
-
-data Value
-  = Pure Text
-  | Str Text
-  | Bool Bool
-  | Num Int
-  | Nullable Value
 
 -- use this two functions
 -- mkQueryKey
