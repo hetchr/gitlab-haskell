@@ -34,6 +34,7 @@ import qualified Data.ByteString.Lazy.Char8 as C
 import Data.Either
 import Data.Text (Text)
 import qualified Data.Text as T
+import Debug.Trace
 import GitLab.New.Utils
 import qualified Data.Text.Encoding as T
 import GitLab.Types
@@ -127,7 +128,7 @@ gitlabPostBuilder ::
   [FieldBuilder] ->
   GitLab (PostResult resBody)
 gitlabPostBuilder urlPath body = do
-  let dataBody = buildFields body
+  let dataBody = traceShowId $ buildFields body
   cfg <- serverCfg <$> ask
   manager <- httpManager <$> ask
   let url' = url cfg <> "/api/v4" <> urlPath
