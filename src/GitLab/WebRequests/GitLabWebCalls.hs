@@ -13,9 +13,14 @@ module GitLab.WebRequests.GitLabWebCalls
     gitlabReqJsonOne,
     -- not currently used.
     -- gitlabWithAttrsOneUnsafe,
+    -------------------------------------------
+    -- TODO don't forget to smoosh this togheter in
+    -- a single function with some knobs
     gitlabPost, -- old one
     gitlabPostVerbose, -- old one
     gitlabPostBuilder, -- this is the new one
+    gitlabPostBuilder', -- this is the new one
+    ---------------------------------------------
     PostResult (..),
     gitlabPut,
     gitlabDelete,
@@ -147,6 +152,27 @@ gitlabPostBuilder urlPath body = do
             Just x -> RequestSuccess x
             Nothing -> ParseFailure (T.decodeUtf8 $ C.toStrict $ responseBody resp)
         )
+    else return (HttpFailure (responseStatus resp))
+
+gitlabPostBuilder' ::
+  Text ->
+  [FieldBuilder] ->
+  GitLab (PostResult ())
+gitlabPostBuilder' urlPath body = do
+  let dataBody = traceShowId $ buildFields body
+  cfg <- serverCfg <$> ask
+  manager <- httpManager <$> ask
+  let url' = url cfg <> "/api/v4" <> urlPath
+  let request' = parseRequest_ (T.unpack url')
+      request =
+        request'
+          { method = "POST",
+            requestHeaders = [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg)), ("Content-type", "application/json")],
+            requestBody = RequestBodyBS (T.encodeUtf8 dataBody)
+          }
+  resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
+  if successStatus (responseStatus resp)
+    then return (RequestSuccess ())
     else return (HttpFailure (responseStatus resp))
 
 gitlabPut ::
