@@ -17,9 +17,8 @@ module GitLab.WebRequests.GitLabWebCalls
     -- TODO don't forget to smoosh this togheter in
     -- a single function with some knobs
     gitlabPost, -- old one
-    gitlabPostVerbose, -- old one
-    gitlabPostBuilder, -- this is the new one
     gitlabPostBuilder', -- this is the new one
+    buildFields,
     ---------------------------------------------
     PostResult (..),
     gitlabPut,
@@ -32,16 +31,17 @@ where
 import qualified Control.Exception as Exception
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Reader
-import Data.Aeson
+import qualified Data.Aeson.Text as A
+import Data.Aeson as A
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Lazy.Char8 as C
-import Data.Either
 import Data.Text (Text)
+import Data.Either
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Encoding as T
-import Debug.Trace
-import GitLab.New.Utils
+--import GitLab.New.Utils
 import GitLab.Types
 import Network.HTTP.Conduit
 import Network.HTTP.Types.Status
@@ -55,125 +55,6 @@ instance Exception.Exception GitLabException
 
 -- In this module, "unsafe" functions are those that discard HTTP
 -- error code responses, e.g. 404, 409.
-
-gitlabPost ::
-  (FromJSON b) =>
-  -- | the URL to post to
-  Text ->
-  -- | the data to post
-  Text ->
-  GitLab (Either Status (Maybe b))
-gitlabPost urlPath dataBody = do
-  cfg <- serverCfg <$> ask
-  manager <- httpManager <$> ask
-  let url' = url cfg <> "/api/v4" <> urlPath
-  let request' = parseRequest_ (T.unpack url')
-      request =
-        request'
-          { method = "POST",
-            requestHeaders =
-              [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg))],
-            requestBody = RequestBodyBS (T.encodeUtf8 dataBody)
-          }
-  resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
-  if successStatus (responseStatus resp)
-    then
-      return
-        ( case parseBSOne (responseBody resp) of
-            Just x -> Right (Just x)
-            Nothing -> Right Nothing
-          -- Nothing ->
-          --   Left $
-          --     mkStatus 409 "unable to parse POST response"
-        )
-    else return (Left (responseStatus resp))
-
-data PostResult b
-  = ParseFailure Text
-  | RequestSuccess b
-  | HttpFailure Status
-  -- not used RequestFailure Text
-  deriving
-    (Eq, Show)
-
--- this is a modified version of the original function with
--- a more expressive result
-gitlabPostVerbose ::
-  (FromJSON b) =>
-  -- | the URL to post to
-  Text ->
-  -- | the data to post
-  Text ->
-  GitLab (PostResult b)
-gitlabPostVerbose urlPath dataBody = do
-  cfg <- serverCfg <$> ask
-  manager <- httpManager <$> ask
-  let url' = url cfg <> "/api/v4" <> urlPath
-  let request' = parseRequest_ (T.unpack url')
-      request =
-        request'
-          { method = "POST",
-            requestHeaders =
-              [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg))],
-            requestBody = RequestBodyBS (T.encodeUtf8 dataBody)
-          }
-  resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
-  if successStatus (responseStatus resp)
-    then
-      return
-        ( case parseBSOne (responseBody resp) of
-            Just x -> RequestSuccess x
-            Nothing -> ParseFailure (T.decodeUtf8 $ C.toStrict $ responseBody resp)
-        )
-    else return (HttpFailure (responseStatus resp))
-
-gitlabPostBuilder ::
-  (FromJSON resBody) =>
-  Text ->
-  [FieldBuilder] ->
-  GitLab (PostResult resBody)
-gitlabPostBuilder urlPath body = do
-  let dataBody = traceShowId $ buildFields body
-  cfg <- serverCfg <$> ask
-  manager <- httpManager <$> ask
-  let url' = url cfg <> "/api/v4" <> urlPath
-  let request' = parseRequest_ (T.unpack url')
-      request =
-        request'
-          { method = "POST",
-            requestHeaders = [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg)), ("Content-type", "application/json")],
-            requestBody = RequestBodyBS (T.encodeUtf8 dataBody)
-          }
-  resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
-  if successStatus (responseStatus resp)
-    then
-      return
-        ( case parseBSOne (responseBody resp) of
-            Just x -> RequestSuccess x
-            Nothing -> ParseFailure (T.decodeUtf8 $ C.toStrict $ responseBody resp)
-        )
-    else return (HttpFailure (responseStatus resp))
-
-gitlabPostBuilder' ::
-  Text ->
-  [FieldBuilder] ->
-  GitLab (PostResult ())
-gitlabPostBuilder' urlPath body = do
-  let dataBody = traceShowId $ buildFields body
-  cfg <- serverCfg <$> ask
-  manager <- httpManager <$> ask
-  let url' = url cfg <> "/api/v4" <> urlPath
-  let request' = parseRequest_ (T.unpack url')
-      request =
-        request'
-          { method = "POST",
-            requestHeaders = [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg)), ("Content-type", "application/json")],
-            requestBody = RequestBodyBS (T.encodeUtf8 dataBody)
-          }
-  resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
-  if successStatus (responseStatus resp)
-    then return (RequestSuccess ())
-    else return (HttpFailure (responseStatus resp))
 
 gitlabPut ::
   FromJSON b =>
@@ -406,3 +287,77 @@ totalPages resp =
 successStatus :: Status -> Bool
 successStatus (Status n _msg) =
   n >= 200 && n <= 226
+
+type FieldBuilder = (Text, A.Value)
+
+buildFields :: [FieldBuilder] -> Text
+buildFields =
+  LT.toStrict . A.encodeToLazyText . A.object
+
+----------
+-- POST --
+----------
+
+data PostResult b
+  = ParseFailure Text
+  | RequestSuccess b
+  | HttpFailure Status
+  -- not used RequestFailure Text
+  deriving
+    (Eq, Show)
+
+gitlabPost ::
+  (FromJSON b) =>
+  -- | the URL to post to
+  Text ->
+  -- | the data to post
+  Text ->
+  GitLab (Either Status (Maybe b))
+gitlabPost urlPath _dataBody = do
+  cfg <- serverCfg <$> ask
+  manager <- httpManager <$> ask
+  let url' = url cfg <> "/api/v4" <> urlPath
+  let request' = parseRequest_ (T.unpack url')
+      request =
+        request'
+          { method = "POST",
+            requestHeaders =
+              [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg))],
+            requestBody = error "this is not correct, fix it" -- RequestBodyBS (T.encodeUtf8 dataBody)
+          }
+  resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
+  if successStatus (responseStatus resp)
+    then
+      return
+        ( case parseBSOne (responseBody resp) of
+            Just x -> Right (Just x)
+            Nothing -> Right Nothing
+          -- Nothing ->
+          --   Left $
+          --     mkStatus 409 "unable to parse POST response"
+        )
+    else return (Left (responseStatus resp))
+
+-- | Will not try to parse the response.
+-- This function can be modified to return the parsed
+-- response instead, if needed.
+gitlabPostBuilder' ::
+  Text ->
+  [FieldBuilder] ->
+  GitLab (PostResult ())
+gitlabPostBuilder' urlPath body = do
+  let encodedBody = buildFields body
+  cfg <- serverCfg <$> ask
+  manager <- httpManager <$> ask
+  let url' = url cfg <> "/api/v4" <> urlPath
+  let request' = parseRequest_ (T.unpack url')
+      request =
+        request'
+          { method = "POST",
+            requestHeaders = [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg)), ("Content-type", "application/json")],
+            requestBody = RequestBodyBS (T.encodeUtf8 encodedBody)
+          }
+  resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
+  if successStatus (responseStatus resp)
+    then return (RequestSuccess ())
+    else return (HttpFailure (responseStatus resp))
