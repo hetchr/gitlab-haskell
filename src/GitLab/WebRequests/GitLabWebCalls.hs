@@ -300,9 +300,9 @@ buildFields =
 
 data PostResult b
   = ParseFailure Text
+  | NoResponse
   | RequestSuccess b
   | HttpFailure Status
-  -- not used RequestFailure Text
   deriving
     (Eq, Show)
 
