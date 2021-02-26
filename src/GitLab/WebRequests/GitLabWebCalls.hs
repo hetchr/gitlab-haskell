@@ -313,7 +313,7 @@ gitlabPost ::
   -- | the data to post
   Text ->
   GitLab (Either Status (Maybe b))
-gitlabPost urlPath _dataBody = do
+gitlabPost urlPath dataBody = do
   cfg <- serverCfg <$> ask
   manager <- httpManager <$> ask
   let url' = url cfg <> "/api/v4" <> urlPath
