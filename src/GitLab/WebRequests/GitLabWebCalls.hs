@@ -323,7 +323,7 @@ gitlabPost urlPath _dataBody = do
           { method = "POST",
             requestHeaders =
               [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg))],
-            requestBody = error "this is not correct, fix it" -- RequestBodyBS (T.encodeUtf8 dataBody)
+            requestBody = RequestBodyBS (T.encodeUtf8 dataBody)
           }
   resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
   if successStatus (responseStatus resp)
