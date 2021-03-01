@@ -8,30 +8,22 @@ module GitLab.WebRequests.GitLabWebCalls
     gitlabWithAttrs,
     gitlabWithAttrsUnsafe,
     gitlabOne,
-    -- gitlabOneIO,
     gitlabWithAttrsOne,
     gitlabReqJsonOne,
-    -- not currently used.
-    -- gitlabWithAttrsOneUnsafe,
-    -------------------------------------------
-    -- TODO don't forget to smoosh this togheter in
-    -- a single function with some knobs
-    gitlabPost, -- old one
-    gitlabPostBuilder', -- this is the new one
-    buildFields,
-    ---------------------------------------------
+    gitlabPost,
     gitlabPut,
-    gitlabPutBuilder,
-    ---------------------------------------------
     gitlabDelete,
     gitlabReqText,
     gitlabReqByteString,
-    ---------------------------------------------
+    --------------------------------------------- NEW
     PostResult (..),
     PutResult (..),
     GetResult (..),
     RelativeUrl (..),
     gitlabReqJsonManyBuilder,
+    gitlabPutBuilder,
+    gitlabPostBuilder', -- this is the new one
+    buildFields,
   )
 where
 
@@ -71,11 +63,10 @@ data PostResult a
 data PutResult a-- TODO
 
 -- this could just be called path part of the url
+-- this can be turned into an smart constructor eventually
 newtype RelativeUrl = RelativeUrl {relativeUrl :: Text}
 
-type FieldBuilder = (Text, A.Value)
-
-type BodyBuilder = [FieldBuilder]
+type BodyBuilder = [(Text, A.Value)]
 
 type TextBody = Text
 
@@ -328,7 +319,7 @@ successStatus :: Status -> Bool
 successStatus (Status n _msg) =
   n >= 200 && n <= 226
 
-buildFields :: [FieldBuilder] -> Text
+buildFields :: BodyBuilder -> Text
 buildFields =
   LT.toStrict . A.encodeToLazyText . A.object
 
@@ -451,6 +442,7 @@ gitlabPutBuilder urlPath bodyBuilder = do
   resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
   if successStatus (responseStatus resp)
     then
+    -- TODO
       return undefined
         {-
         ( case parseBSOne (responseBody resp) of
@@ -459,4 +451,5 @@ gitlabPutBuilder urlPath bodyBuilder = do
               undefined -- Left $ mkStatus 409 "unable to parse PUT response"
         )
         -}
+        -- TODO
     else return undefined -- (Left (responseStatus resp))
