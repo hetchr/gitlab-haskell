@@ -20,13 +20,16 @@ module GitLab.WebRequests.GitLabWebCalls
     gitlabPostBuilder', -- this is the new one
     buildFields,
     ---------------------------------------------
-    PostResult (..),
-    GetResult (..),
     gitlabPut,
+    gitlabPutBuilder,
+    ---------------------------------------------
     gitlabDelete,
     gitlabReqText,
     gitlabReqByteString,
     ---------------------------------------------
+    PostResult (..),
+    PutResult (..),
+    GetResult (..),
     RelativeUrl (..),
     gitlabReqJsonManyBuilder,
   )
@@ -65,6 +68,8 @@ data PostResult a
   deriving
     (Eq, Show)
 
+data PutResult a-- TODO
+
 -- this could just be called path part of the url
 newtype RelativeUrl = RelativeUrl {relativeUrl :: Text}
 
@@ -83,39 +88,6 @@ instance Exception.Exception GitLabException
 
 -- In this module, "unsafe" functions are those that discard HTTP
 -- error code responses, e.g. 404, 409.
-
-gitlabPut ::
-  FromJSON b =>
-  -- | the URL to post to
-  RelativeUrl ->
-  -- | the data to post
-  TextBody ->
-  GitLab (Either Status b)
-gitlabPut urlPath dataBody = do
-  cfg <- serverCfg <$> ask
-  manager <- httpManager <$> ask
-  let url' = url cfg <> "/api/v4" <> relativeUrl urlPath
-  let request' = parseRequest_ (T.unpack url')
-      request =
-        request'
-          { method = "PUT",
-            requestHeaders =
-              [ ("PRIVATE-TOKEN", T.encodeUtf8 (token cfg)),
-                ("content-type", "application/json")
-              ],
-            requestBody = RequestBodyBS (T.encodeUtf8 dataBody)
-          }
-  resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
-  if successStatus (responseStatus resp)
-    then
-      return
-        ( case parseBSOne (responseBody resp) of
-            Just x -> Right x
-            Nothing ->
-              Left $
-                mkStatus 409 "unable to parse PUT response"
-        )
-    else return (Left (responseStatus resp))
 
 gitlabDelete ::
   -- | the URL to post to
@@ -157,6 +129,40 @@ tryGitLab i request maxRetries manager lastException
   | otherwise =
     httpLbs request manager
       `Exception.catch` \ex -> tryGitLab (i + 1) request maxRetries manager (Just ex)
+
+gitlabPut ::
+  FromJSON b =>
+  -- | the URL to post to
+  RelativeUrl ->
+  -- | the data to post
+  TextBody ->
+  GitLab (Either Status b)
+gitlabPut urlPath dataBody = do
+  cfg <- serverCfg <$> ask
+  manager <- httpManager <$> ask
+  let url' = url cfg <> "/api/v4" <> relativeUrl urlPath
+  let request' = parseRequest_ (T.unpack url')
+      request =
+        request'
+          { method = "PUT",
+            requestHeaders =
+              [ ("PRIVATE-TOKEN", T.encodeUtf8 (token cfg)),
+                ("content-type", "application/json")
+              ],
+            requestBody = RequestBodyBS (T.encodeUtf8 dataBody)
+          }
+  resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
+  if successStatus (responseStatus resp)
+    then
+      return
+        ( case parseBSOne (responseBody resp) of
+            Just x -> Right x
+            Nothing ->
+              Left $
+                mkStatus 409 "unable to parse PUT response"
+        )
+    else return (Left (responseStatus resp))
+
 
 parseBSOne :: FromJSON a => BSL.ByteString -> Maybe a
 parseBSOne bs =
@@ -326,10 +332,6 @@ buildFields :: [FieldBuilder] -> Text
 buildFields =
   LT.toStrict . A.encodeToLazyText . A.object
 
-----------
--- POST --
-----------
-
 gitlabPost ::
   (FromJSON b) =>
   -- | the URL to post to
@@ -361,6 +363,12 @@ gitlabPost urlPath dataBody = do
           --     mkStatus 409 "unable to parse POST response"
         )
     else return (Left (responseStatus resp))
+
+-------------
+-- BUILDER --
+-------------
+
+-- This functions uses the builder abstratction type
 
 -- | Will not try to parse the response.
 gitlabPostBuilder' ::
@@ -418,3 +426,37 @@ gitlabReqJsonManyBuilder urlPath body =
             then return (GRequestSuccess accum')
             else go (i + 1) accum'
         else return (GHttpFailure (responseStatus resp))
+
+gitlabPutBuilder ::
+  FromJSON a =>
+  -- | the URL to post to
+  RelativeUrl ->
+  -- | the data to post
+  BodyBuilder ->
+  GitLab (PutResult a)
+gitlabPutBuilder urlPath bodyBuilder = do
+  cfg <- serverCfg <$> ask
+  manager <- httpManager <$> ask
+  let url' = url cfg <> "/api/v4" <> relativeUrl urlPath
+  let request' = parseRequest_ (T.unpack url')
+      request =
+        request'
+          { method = "PUT",
+            requestHeaders =
+              [ ("PRIVATE-TOKEN", T.encodeUtf8 (token cfg)),
+                ("content-type", "application/json")
+              ],
+            requestBody = RequestBodyBS (T.encodeUtf8 $ buildFields bodyBuilder)
+          }
+  resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
+  if successStatus (responseStatus resp)
+    then
+      return undefined
+        {-
+        ( case parseBSOne (responseBody resp) of
+            Just x -> undefined -- Right x
+            Nothing ->
+              undefined -- Left $ mkStatus 409 "unable to parse PUT response"
+        )
+        -}
+    else return undefined -- (Left (responseStatus resp))
