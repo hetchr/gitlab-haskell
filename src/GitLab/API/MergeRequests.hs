@@ -38,7 +38,7 @@ mergeRequest' ::
 mergeRequest' projectId mergeRequestIID =
   gitlabOne addr
   where
-    addr =
+    addr = RelativeUrl $ 
       "/projects/"
         <> T.pack (show projectId)
         <> "/merge_requests/"
@@ -62,9 +62,10 @@ mergeRequests' projectId =
   gitlabWithAttrs addr "&scope=all"
   where
     addr =
-      "/projects/"
-        <> T.pack (show projectId)
-        <> "/merge_requests"
+      RelativeUrl $
+        "/projects/"
+          <> T.pack (show projectId)
+          <> "/merge_requests"
 
 -- | Creates a merge request.
 createMergeRequest ::
@@ -162,6 +163,7 @@ deleteMergeRequest' ::
 deleteMergeRequest' projectId mergeRequestIid = gitlabDelete addr
   where
     addr =
-      T.pack $
-        "/projects/" <> show projectId <> "/merge_requests/"
+      RelativeUrl
+        $ T.pack
+        $ "/projects/" <> show projectId <> "/merge_requests/"
           <> show mergeRequestIid

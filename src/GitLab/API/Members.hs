@@ -44,7 +44,8 @@ membersOfProject' projectId =
   gitlab addr
   where
     addr =
-      "/projects/" <> T.pack (show projectId) <> "/members"
+      RelativeUrl $
+        "/projects/" <> T.pack (show projectId) <> "/members"
 
 -- | adds a user to a project with the given access level. Returns
 -- 'Right Member' for each successful action, otherwise it returns

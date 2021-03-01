@@ -29,7 +29,7 @@ import UnliftIO.Async
 -- | gets all projects.
 allProjects :: GitLab [Project]
 allProjects =
-  gitlabWithAttrsUnsafe "/projects" "&statistics=true"
+  gitlabWithAttrsUnsafe (RelativeUrl "/projects") "&statistics=true"
 
 -- | gets all forks of a project. Supports use of namespaces.
 --
@@ -41,9 +41,10 @@ projectForks ::
   GitLab (Either Status [Project])
 projectForks projectName = do
   let urlPath =
-        "/projects/"
-          <> T.decodeUtf8 (urlEncode False (T.encodeUtf8 projectName))
-          <> "/forks"
+        RelativeUrl $
+          "/projects/"
+            <> T.decodeUtf8 (urlEncode False (T.encodeUtf8 projectName))
+            <> "/forks"
   gitlab urlPath
 
 -- | searches for a 'Project' with the given project ID, returns
@@ -53,7 +54,7 @@ searchProjectId ::
   Int ->
   GitLab (Either Status (Maybe Project))
 searchProjectId projectId = do
-  let urlPath = T.pack ("/projects/" <> show projectId)
+  let urlPath = RelativeUrl $ T.pack ("/projects/" <> show projectId)
   gitlabWithAttrsOne urlPath "&statistics=true"
 
 -- | gets all projects with the given project name.
@@ -65,7 +66,7 @@ projectsWithName ::
   GitLab [Project]
 projectsWithName projectName =
   filter (\project -> projectName == project_path project)
-    <$> gitlabWithAttrsUnsafe "/projects" ("&search=" <> projectName)
+    <$> gitlabWithAttrsUnsafe (RelativeUrl "/projects") ("&search=" <> projectName)
 
 -- | gets a project with the given name for the given username. E.g.
 --
@@ -75,9 +76,10 @@ projectsWithName projectName =
 projectsWithNameAndUser :: Text -> Text -> GitLab (Either Status (Maybe Project))
 projectsWithNameAndUser username projectName =
   gitlabWithAttrsOne
-    ( "/projects/"
-        <> T.decodeUtf8
-          (urlEncode False (T.encodeUtf8 (username <> "/" <> projectName)))
+    ( RelativeUrl $
+        "/projects/"
+          <> T.decodeUtf8
+            (urlEncode False (T.encodeUtf8 (username <> "/" <> projectName)))
     )
     "&statistics=true"
 
@@ -116,7 +118,7 @@ userProjects' username = do
     Nothing -> return Nothing
     Just usr -> Just <$> gitlabUnsafe (urlPath (user_id usr))
   where
-    urlPath usrId = "/users/" <> T.pack (show usrId) <> "/projects"
+    urlPath usrId = RelativeUrl $ "/users/" <> T.pack (show usrId) <> "/projects"
 
 -- | gets all projects for a user.
 --
@@ -181,7 +183,8 @@ projectMemebersCount project = do
   where
     count = do
       let addr =
-            "/projects/" <> T.pack (show (project_id project)) <> "/members/all"
+            RelativeUrl $
+              "/projects/" <> T.pack (show (project_id project)) <> "/members/all"
       (res :: [Member]) <- gitlabUnsafe addr
       return (map (\x -> (member_username x, member_name x)) res)
 
@@ -219,11 +222,12 @@ projectDiffs proj =
 projectDiffs' :: Int -> Text -> GitLab (Either Status [Diff])
 projectDiffs' projId commitSha =
   gitlab
-    ( "/projects/"
-        <> T.pack (show projId)
-        <> "/repository/commits/"
-        <> commitSha
-        <> "/diff/"
+    ( RelativeUrl $
+        "/projects/"
+          <> T.pack (show projId)
+          <> "/repository/commits/"
+          <> commitSha
+          <> "/diff/"
     )
 
 -- | add a group to a project.

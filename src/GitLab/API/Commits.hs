@@ -32,7 +32,7 @@ projectCommits' ::
   Int ->
   GitLab (Either Status [Commit])
 projectCommits' projectId =
-  gitlabWithAttrs (commitsAddr projectId) "&with_stats=true"
+  gitlabWithAttrs (RelativeUrl $ commitsAddr projectId) "&with_stats=true"
   where
     commitsAddr :: Int -> Text
     commitsAddr projId =
@@ -58,7 +58,7 @@ branchCommits' ::
   Text ->
   GitLab (Either Status [Commit])
 branchCommits' projectId branchName = do
-  gitlabWithAttrs (commitsAddr projectId) ("&ref_name=" <> branchName)
+  gitlabWithAttrs (RelativeUrl $ commitsAddr projectId) ("&ref_name=" <> branchName)
   where
     commitsAddr :: Int -> Text
     commitsAddr projId =
@@ -85,7 +85,7 @@ commitDetails' ::
   Text ->
   GitLab (Either Status (Maybe Commit))
 commitDetails' projectId hash =
-  gitlabOne (commitsAddr projectId)
+  gitlabOne (RelativeUrl $ commitsAddr projectId)
   where
     commitsAddr :: Int -> Text
     commitsAddr projId =

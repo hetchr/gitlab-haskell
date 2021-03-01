@@ -20,7 +20,7 @@ import GitLab.WebRequests.GitLabWebCalls
 -- | all registered users.
 allUsers :: GitLab [User]
 allUsers = do
-  let path = "/users"
+  let path = RelativeUrl "/users"
   gitlabUnsafe path
 
 -- | searches for a user given a user ID. Returns @Just User@ if the
@@ -31,8 +31,9 @@ userId ::
   GitLab (Maybe User)
 userId usrId = do
   let path =
-        "/users/"
-          <> T.pack (show usrId)
+        RelativeUrl $
+          "/users/"
+            <> T.pack (show usrId)
   res <- gitlabOne path
   case res of
     Left _err -> return Nothing
@@ -46,7 +47,7 @@ searchUser ::
   Text ->
   GitLab (Maybe User)
 searchUser username = do
-  let path = "/users"
+  let path = RelativeUrl "/users"
       attrs = "&username=" <> username
   res <- gitlabWithAttrsUnsafe path attrs
   case res of

@@ -34,8 +34,8 @@ repositories' ::
 repositories' projectId =
   gitlab addr
   where
-    addr =
-      "/projects/"
+    addr = RelativeUrl $ 
+      "/projects/" 
         <> T.pack (show projectId)
         <> "/repository"
         <> "/tree"
@@ -98,8 +98,9 @@ getFileArchiveBS' projectId format =
   gitlabReqByteString addr
   where
     addr =
-      "/projects/"
-        <> T.pack (show projectId)
-        <> "/repository"
-        <> "/archive"
-        <> T.pack (show format)
+      RelativeUrl $
+        "/projects/"
+          <> T.pack (show projectId)
+          <> "/repository"
+          <> "/archive"
+          <> T.pack (show format)

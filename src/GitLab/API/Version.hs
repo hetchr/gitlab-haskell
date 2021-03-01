@@ -16,5 +16,5 @@ import Network.HTTP.Types.Status
 -- | Get the version of the GitLab server.
 gitlabVersion :: GitLab (Either Status (Maybe Version))
 gitlabVersion = do
-  let path = "/version"
+  let path = RelativeUrl "/version"
   gitlabOne path

@@ -29,7 +29,7 @@ groupsWithNameOrPath ::
   Text ->
   GitLab (Either Status [Group])
 groupsWithNameOrPath groupName = do
-  result <- gitlabWithAttrs "/groups" ("&search=" <> groupName)
+  result <- gitlabWithAttrs (RelativeUrl "/groups") ("&search=" <> groupName)
   case result of
     Left {} -> return result
     Right groups ->
@@ -133,7 +133,7 @@ groupProjects' ::
   GitLab (Either Status [Project])
 groupProjects' groupID = do
   let urlPath =
-        T.pack $
+        RelativeUrl . T.pack $
           "/groups/"
             <> show groupID
             <> "/projects"

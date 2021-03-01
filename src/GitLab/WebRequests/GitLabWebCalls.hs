@@ -25,6 +25,8 @@ module GitLab.WebRequests.GitLabWebCalls
     gitlabDelete,
     gitlabReqText,
     gitlabReqByteString,
+    ---------------------------------------------
+    RelativeUrl(..),
   )
 where
 
@@ -48,6 +50,14 @@ import Network.HTTP.Types.Status
 import Network.HTTP.Types.URI
 import Text.Read
 
+type TextBody = Text
+
+newtype RelativeUrl = RelativeUrl {relativeUrl :: Text}
+
+type TextAttrs = Text
+
+type BodyBuilder = [FieldBuilder]
+
 newtype GitLabException = GitLabException String
   deriving (Eq, Show)
 
@@ -59,14 +69,14 @@ instance Exception.Exception GitLabException
 gitlabPut ::
   FromJSON b =>
   -- | the URL to post to
-  Text ->
+  RelativeUrl ->
   -- | the data to post
-  Text ->
+  TextBody ->
   GitLab (Either Status b)
 gitlabPut urlPath dataBody = do
   cfg <- serverCfg <$> ask
   manager <- httpManager <$> ask
-  let url' = url cfg <> "/api/v4" <> urlPath
+  let url' = url cfg <> "/api/v4" <> relativeUrl urlPath
   let request' = parseRequest_ (T.unpack url')
       request =
         request'
@@ -91,12 +101,12 @@ gitlabPut urlPath dataBody = do
 
 gitlabDelete ::
   -- | the URL to post to
-  Text ->
+  RelativeUrl ->
   GitLab (Either Status ())
 gitlabDelete urlPath = do
   cfg <- serverCfg <$> ask
   manager <- httpManager <$> ask
-  let url' = url cfg <> "/api/v4" <> urlPath
+  let url' = url cfg <> "/api/v4" <> relativeUrl urlPath
   let request' = parseRequest_ (T.unpack url')
       request =
         request'
@@ -143,7 +153,7 @@ parseBSMany bs =
     Left s -> Exception.throwIO $ GitLabException s
     Right xs -> return xs
 
-gitlabReqJsonMany :: (FromJSON a) => Text -> Text -> GitLab (Either Status [a])
+gitlabReqJsonMany :: (FromJSON a) => RelativeUrl -> TextAttrs -> GitLab (Either Status [a])
 gitlabReqJsonMany urlPath attrs =
   go 1 []
   where
@@ -153,7 +163,7 @@ gitlabReqJsonMany urlPath attrs =
       let url' =
             url cfg
               <> "/api/v4"
-              <> urlPath
+              <> relativeUrl urlPath
               <> "?per_page=100"
               <> "&page="
               <> T.pack (show i)
@@ -175,6 +185,47 @@ gitlabReqJsonMany urlPath attrs =
             then return (Right accum')
             else go (i + 1) accum'
         else return (Left (responseStatus resp))
+
+-- TODO change the return type of this
+gitlabReqJsonManyBuilder :: (FromJSON a) => RelativeUrl -> BodyBuilder -> GitLab (Either Status [a])
+gitlabReqJsonManyBuilder urlPath _body =
+  go 1 []
+  where
+    go i accum = do
+      cfg <- serverCfg <$> ask
+      manager <- httpManager <$> ask
+      let url' =
+            url cfg
+              <> "/api/v4"
+              <> relativeUrl urlPath
+              <> "?per_page=100"
+              <> "&page="
+              <> T.pack (show i)
+              -- <> T.decodeUtf8 (urlEncode False (T.encodeUtf8 attrs))
+              <> T.decodeUtf8 (urlEncode False (T.encodeUtf8 undefined))
+      let request' = parseRequest_ (T.unpack url')
+          request =
+            request'
+              { requestHeaders =
+                  [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg))],
+                responseTimeout = responseTimeoutMicro (timeout cfg)
+              }
+      resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
+      if successStatus (responseStatus resp)
+        then do
+          moreResults <- liftIO $ parseBSMany (responseBody resp)
+          let numPages = totalPages resp
+              accum' = accum ++ moreResults
+          if numPages == i
+            then return (Right accum')
+            else go (i + 1) accum'
+        else return (Left (responseStatus resp))
+
+{-
+        { method = "POST",
+          requestHeaders = [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg)), ("Content-type", "application/json")],
+          requestBody = RequestBodyBS (T.encodeUtf8 encodedBody)
+-}
 
 -- not sure what this was planned for
 --
@@ -201,7 +252,7 @@ gitlabReqJsonMany urlPath attrs =
 --         then return (Right (parser (responseBody resp)))
 --         else return (Left (responseStatus resp))
 
-gitlabReqOne :: (BSL.ByteString -> output) -> Text -> Text -> GitLab (Either Status output)
+gitlabReqOne :: (BSL.ByteString -> output) -> RelativeUrl -> TextAttrs -> GitLab (Either Status output)
 gitlabReqOne parser urlPath attrs = go
   where
     go = do
@@ -210,7 +261,7 @@ gitlabReqOne parser urlPath attrs = go
       let url' =
             url cfg
               <> "/api/v4"
-              <> urlPath
+              <> relativeUrl urlPath
               <> "?per_page=100"
               <> "&page=1"
               <> attrs
@@ -232,20 +283,20 @@ gitlabReqOne parser urlPath attrs = go
 -- gitlabReqJsonOneIO mgr cfg urlPath attrs =
 --   gitlabReqOneIO mgr cfg parseBSOne urlPath attrs
 
-gitlabReqJsonOne :: (FromJSON a) => Text -> Text -> GitLab (Either Status (Maybe a))
+gitlabReqJsonOne :: (FromJSON a) => RelativeUrl -> Text -> GitLab (Either Status (Maybe a))
 gitlabReqJsonOne =
   gitlabReqOne parseBSOne
 
-gitlabReqText :: Text -> GitLab (Either Status String)
+gitlabReqText :: RelativeUrl -> GitLab (Either Status String)
 gitlabReqText urlPath = gitlabReqOne C.unpack urlPath ""
 
-gitlabReqByteString :: Text -> GitLab (Either Status BSL.ByteString)
+gitlabReqByteString :: RelativeUrl -> GitLab (Either Status BSL.ByteString)
 gitlabReqByteString urlPath = gitlabReqOne Prelude.id urlPath ""
 
-gitlab :: FromJSON a => Text -> GitLab (Either Status [a])
+gitlab :: FromJSON a => RelativeUrl -> GitLab (Either Status [a])
 gitlab addr = gitlabReqJsonMany addr ""
 
-gitlabUnsafe :: (FromJSON a) => Text -> GitLab [a]
+gitlabUnsafe :: (FromJSON a) => RelativeUrl -> GitLab [a]
 gitlabUnsafe addr =
   fromRight (error "gitlabUnsafe error") <$> gitlab addr
 
@@ -254,17 +305,17 @@ gitlabUnsafe addr =
 -- gitlabOneIO :: (FromJSON a) => Manager -> GitLabServerConfig -> Text -> IO (Either Status (Maybe a))
 -- gitlabOneIO mgr cfg addr = gitlabReqJsonOneIO mgr cfg addr ""
 
-gitlabOne :: (FromJSON a) => Text -> GitLab (Either Status (Maybe a))
+gitlabOne :: (FromJSON a) => RelativeUrl -> GitLab (Either Status (Maybe a))
 gitlabOne addr = gitlabReqJsonOne addr ""
 
-gitlabWithAttrs :: (FromJSON a) => Text -> Text -> GitLab (Either Status [a])
+gitlabWithAttrs :: (FromJSON a) => RelativeUrl -> Text -> GitLab (Either Status [a])
 gitlabWithAttrs = gitlabReqJsonMany
 
-gitlabWithAttrsUnsafe :: (FromJSON a) => Text -> Text -> GitLab [a]
+gitlabWithAttrsUnsafe :: (FromJSON a) => RelativeUrl -> TextAttrs -> GitLab [a]
 gitlabWithAttrsUnsafe gitlabURL attrs =
   fromRight (error "gitlabWithAttrsUnsafe error") <$> gitlabReqJsonMany gitlabURL attrs
 
-gitlabWithAttrsOne :: (FromJSON a) => Text -> Text -> GitLab (Either Status (Maybe a))
+gitlabWithAttrsOne :: (FromJSON a) => RelativeUrl -> Text -> GitLab (Either Status (Maybe a))
 gitlabWithAttrsOne = gitlabReqJsonOne
 
 -- not currently used.
@@ -342,14 +393,14 @@ gitlabPost urlPath dataBody = do
 -- This function can be modified to return the parsed
 -- response instead, if needed.
 gitlabPostBuilder' ::
-  Text ->
-  [FieldBuilder] ->
+  RelativeUrl ->
+  BodyBuilder ->
   GitLab (PostResult ())
 gitlabPostBuilder' urlPath body = do
   let encodedBody = buildFields body
   cfg <- serverCfg <$> ask
   manager <- httpManager <$> ask
-  let url' = url cfg <> "/api/v4" <> urlPath
+  let url' = url cfg <> "/api/v4" <> relativeUrl urlPath
   let request' = parseRequest_ (T.unpack url')
       request =
         request'

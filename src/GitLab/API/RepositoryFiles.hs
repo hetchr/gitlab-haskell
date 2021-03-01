@@ -42,12 +42,13 @@ repositoryFiles' projectId filePath reference =
   gitlabWithAttrsOne addr ("&ref=" <> reference)
   where
     addr =
-      "/projects/"
-        <> T.pack (show projectId)
-        <> "/repository"
-        <> "/files"
-        <> "/"
-        <> T.decodeUtf8 (urlEncode False (T.encodeUtf8 filePath))
+      RelativeUrl $
+        "/projects/"
+          <> T.pack (show projectId)
+          <> "/repository"
+          <> "/files"
+          <> "/"
+          <> T.decodeUtf8 (urlEncode False (T.encodeUtf8 filePath))
 
 -- | Get raw data for a given file blob hash.
 repositoryFileBlob ::
@@ -60,9 +61,10 @@ repositoryFileBlob projectId blobSha =
   gitlabReqText addr
   where
     addr =
-      "/projects/"
-        <> T.pack (show projectId)
-        <> "/repository"
-        <> "/blobs/"
-        <> blobSha
-        <> "/raw"
+      RelativeUrl $
+        "/projects/"
+          <> T.pack (show projectId)
+          <> "/repository"
+          <> "/blobs/"
+          <> blobSha
+          <> "/raw"

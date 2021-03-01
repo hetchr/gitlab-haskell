@@ -34,7 +34,7 @@ commitDiscussions' ::
   GitLab (Either Status [Discussion])
 commitDiscussions' projId commitHash = do
   let urlPath =
-        T.pack $
+        RelativeUrl $ T.pack $
           "/projects/"
             <> show projId
             <> "/repository"

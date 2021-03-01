@@ -32,7 +32,7 @@ jobs' ::
 jobs' projectId =
   gitlab addr
   where
-    addr =
+    addr = RelativeUrl $ 
       "/projects/"
         <> T.pack (show projectId)
         <> "/jobs"

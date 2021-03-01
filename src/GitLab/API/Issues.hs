@@ -35,7 +35,7 @@ projectOpenedIssues' ::
   Int ->
   GitLab (Either Status [Issue])
 projectOpenedIssues' projectId = do
-  let path = "/projects/" <> T.pack (show projectId) <> "/issues"
+  let path = RelativeUrl $ "/projects/" <> T.pack (show projectId) <> "/issues"
   gitlab path
 
 -- gitlabReq path "&state=opened"
@@ -48,7 +48,7 @@ userIssues ::
 userIssues usr =
   gitlabWithAttrsUnsafe addr attrs
   where
-    addr = "/issues"
+    addr = RelativeUrl $ "/issues"
     attrs =
       T.pack $
         "&author_id="
@@ -97,7 +97,7 @@ editIssue ::
   EditIssueReq ->
   GitLab (Either Status Issue)
 editIssue projId issueId editIssueReq = do
-  let path =
+  let path = RelativeUrl $
         "/projects/" <> T.pack (show projId)
           <> "/issues/"
           <> T.pack (show issueId)

@@ -28,7 +28,7 @@ branches' :: Int -> GitLab (Either Status [Branch])
 branches' projectId =
   gitlab addr
   where
-    addr =
+    addr = RelativeUrl $
       "/projects/"
         <> T.pack (show projectId)
         <> "/repository"

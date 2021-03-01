@@ -14,4 +14,4 @@ import GitLab.WebRequests.GitLabWebCalls
 
 -- | returns all pending todos for the user, as defined by the access token.
 todos :: GitLab [Todo]
-todos = gitlabUnsafe "/todos"
+todos = gitlabUnsafe (RelativeUrl "/todos")

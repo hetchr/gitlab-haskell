@@ -34,7 +34,7 @@ pipelines' projectId =
     addr
     "&sort=desc" -- most recent first
   where
-    addr =
+    addr = RelativeUrl $
       "/projects/"
         <> T.pack (show projectId)
         <> "/pipelines"
