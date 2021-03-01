@@ -26,7 +26,8 @@ module GitLab.WebRequests.GitLabWebCalls
     gitlabReqText,
     gitlabReqByteString,
     ---------------------------------------------
-    RelativeUrl(..),
+    RelativeUrl (..),
+    gitlabReqJsonManyBuilder,
   )
 where
 
@@ -43,20 +44,36 @@ import Data.Either
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Encoding as T
---import GitLab.New.Utils
 import GitLab.Types
 import Network.HTTP.Conduit
 import Network.HTTP.Types.Status
 import Network.HTTP.Types.URI
 import Text.Read
 
-type TextBody = Text
+data GetResult a
+  = GParseFailure Text
+  | GHttpFailure Status
+  | GRequestSuccess a
+  deriving
+    (Eq, Show)
+
+data PostResult a
+  = ParseFailure Text
+  | NoResponse
+  | HttpFailure Status
+  | RequestSuccess a
+  deriving
+    (Eq, Show)
 
 newtype RelativeUrl = RelativeUrl {relativeUrl :: Text}
 
-type TextAttrs = Text
+type FieldBuilder = (Text, A.Value)
 
 type BodyBuilder = [FieldBuilder]
+
+type TextBody = Text
+
+type TextAttrs = Text
 
 newtype GitLabException = GitLabException String
   deriving (Eq, Show)
@@ -304,8 +321,6 @@ successStatus :: Status -> Bool
 successStatus (Status n _msg) =
   n >= 200 && n <= 226
 
-type FieldBuilder = (Text, A.Value)
-
 buildFields :: [FieldBuilder] -> Text
 buildFields =
   LT.toStrict . A.encodeToLazyText . A.object
@@ -313,14 +328,6 @@ buildFields =
 ----------
 -- POST --
 ----------
-
-data PostResult b
-  = ParseFailure Text
-  | NoResponse
-  | RequestSuccess b
-  | HttpFailure Status
-  deriving
-    (Eq, Show)
 
 gitlabPost ::
   (FromJSON b) =>
@@ -355,13 +362,13 @@ gitlabPost urlPath dataBody = do
     else return (Left (responseStatus resp))
 
 -- | Will not try to parse the response.
--- This function can be modified to return the parsed
--- response instead, if needed.
 gitlabPostBuilder' ::
   RelativeUrl ->
   BodyBuilder ->
   GitLab (PostResult ())
 gitlabPostBuilder' urlPath body = do
+  -- This function can be modified to return the parsed
+  -- response instead, if needed.
   let encodedBody = buildFields body
   cfg <- serverCfg <$> ask
   manager <- httpManager <$> ask
@@ -371,6 +378,7 @@ gitlabPostBuilder' urlPath body = do
         request'
           { method = "POST",
             requestHeaders = [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg)), ("Content-type", "application/json")],
+            responseTimeout = responseTimeoutMicro (timeout cfg),
             requestBody = RequestBodyBS (T.encodeUtf8 encodedBody)
           }
   resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
@@ -378,12 +386,9 @@ gitlabPostBuilder' urlPath body = do
     then return (RequestSuccess ())
     else return (HttpFailure (responseStatus resp))
 
-data GetResult a
-
--- TODO change the return type of this
 gitlabReqJsonManyBuilder :: (FromJSON a) => RelativeUrl -> BodyBuilder -> GitLab (GetResult [a])
-gitlabReqJsonManyBuilder urlPath _body =
-  undefined -- go 1 []
+gitlabReqJsonManyBuilder urlPath body =
+  go 1 []
   where
     go i accum = do
       cfg <- serverCfg <$> ask
@@ -395,14 +400,12 @@ gitlabReqJsonManyBuilder urlPath _body =
               <> "?per_page=100"
               <> "&page="
               <> T.pack (show i)
-              -- <> T.decodeUtf8 (urlEncode False (T.encodeUtf8 attrs))
-              <> T.decodeUtf8 (urlEncode False (T.encodeUtf8 undefined))
       let request' = parseRequest_ (T.unpack url')
           request =
             request'
-              { requestHeaders =
-                  [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg))],
-                responseTimeout = responseTimeoutMicro (timeout cfg)
+              { requestHeaders = [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg)), ("Content-type", "application/json")],
+                responseTimeout = responseTimeoutMicro (timeout cfg),
+                requestBody = RequestBodyBS (T.encodeUtf8 $ buildFields body)
               }
       resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
       if successStatus (responseStatus resp)
@@ -411,7 +414,6 @@ gitlabReqJsonManyBuilder urlPath _body =
           let numPages = totalPages resp
               accum' = accum ++ moreResults
           if numPages == i
-            then return (Right accum')
+            then return (GRequestSuccess accum')
             else go (i + 1) accum'
-        else return (Left (responseStatus resp))
-
+        else return (GHttpFailure (responseStatus resp))
