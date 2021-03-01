@@ -21,6 +21,7 @@ module GitLab.WebRequests.GitLabWebCalls
     buildFields,
     ---------------------------------------------
     PostResult (..),
+    GetResult (..),
     gitlabPut,
     gitlabDelete,
     gitlabReqText,
@@ -51,8 +52,7 @@ import Network.HTTP.Types.URI
 import Text.Read
 
 data GetResult a
-  = GParseFailure Text
-  | GHttpFailure Status
+  = GHttpFailure Status
   | GRequestSuccess a
   deriving
     (Eq, Show)
@@ -65,6 +65,7 @@ data PostResult a
   deriving
     (Eq, Show)
 
+-- this could just be called path part of the url
 newtype RelativeUrl = RelativeUrl {relativeUrl :: Text}
 
 type FieldBuilder = (Text, A.Value)
