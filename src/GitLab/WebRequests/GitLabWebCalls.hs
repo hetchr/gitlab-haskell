@@ -186,41 +186,6 @@ gitlabReqJsonMany urlPath attrs =
             else go (i + 1) accum'
         else return (Left (responseStatus resp))
 
--- TODO change the return type of this
-gitlabReqJsonManyBuilder :: (FromJSON a) => RelativeUrl -> BodyBuilder -> GitLab (Either Status [a])
-gitlabReqJsonManyBuilder urlPath _body =
-  go 1 []
-  where
-    go i accum = do
-      cfg <- serverCfg <$> ask
-      manager <- httpManager <$> ask
-      let url' =
-            url cfg
-              <> "/api/v4"
-              <> relativeUrl urlPath
-              <> "?per_page=100"
-              <> "&page="
-              <> T.pack (show i)
-              -- <> T.decodeUtf8 (urlEncode False (T.encodeUtf8 attrs))
-              <> T.decodeUtf8 (urlEncode False (T.encodeUtf8 undefined))
-      let request' = parseRequest_ (T.unpack url')
-          request =
-            request'
-              { requestHeaders =
-                  [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg))],
-                responseTimeout = responseTimeoutMicro (timeout cfg)
-              }
-      resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
-      if successStatus (responseStatus resp)
-        then do
-          moreResults <- liftIO $ parseBSMany (responseBody resp)
-          let numPages = totalPages resp
-              accum' = accum ++ moreResults
-          if numPages == i
-            then return (Right accum')
-            else go (i + 1) accum'
-        else return (Left (responseStatus resp))
-
 {-
         { method = "POST",
           requestHeaders = [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg)), ("Content-type", "application/json")],
@@ -412,3 +377,41 @@ gitlabPostBuilder' urlPath body = do
   if successStatus (responseStatus resp)
     then return (RequestSuccess ())
     else return (HttpFailure (responseStatus resp))
+
+data GetResult a
+
+-- TODO change the return type of this
+gitlabReqJsonManyBuilder :: (FromJSON a) => RelativeUrl -> BodyBuilder -> GitLab (GetResult [a])
+gitlabReqJsonManyBuilder urlPath _body =
+  undefined -- go 1 []
+  where
+    go i accum = do
+      cfg <- serverCfg <$> ask
+      manager <- httpManager <$> ask
+      let url' =
+            url cfg
+              <> "/api/v4"
+              <> relativeUrl urlPath
+              <> "?per_page=100"
+              <> "&page="
+              <> T.pack (show i)
+              -- <> T.decodeUtf8 (urlEncode False (T.encodeUtf8 attrs))
+              <> T.decodeUtf8 (urlEncode False (T.encodeUtf8 undefined))
+      let request' = parseRequest_ (T.unpack url')
+          request =
+            request'
+              { requestHeaders =
+                  [("PRIVATE-TOKEN", T.encodeUtf8 (token cfg))],
+                responseTimeout = responseTimeoutMicro (timeout cfg)
+              }
+      resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
+      if successStatus (responseStatus resp)
+        then do
+          moreResults <- liftIO $ parseBSMany (responseBody resp)
+          let numPages = totalPages resp
+              accum' = accum ++ moreResults
+          if numPages == i
+            then return (Right accum')
+            else go (i + 1) accum'
+        else return (Left (responseStatus resp))
+
