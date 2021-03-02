@@ -53,14 +53,16 @@ data GetResult a
     (Eq, Show)
 
 data PostResult a
-  = ParseFailure Text
-  | NoResponse
+  = NoResponse
   | HttpFailure Status
   | RequestSuccess a
   deriving
     (Eq, Show)
 
-data PutResult a-- TODO
+data PutResult a
+  = PutNoResponse
+  | PutFailure Status
+  | PutRequestSuccess a
 
 -- this could just be called path part of the url
 -- this can be turned into an smart constructor eventually
@@ -153,7 +155,6 @@ gitlabPut urlPath dataBody = do
                 mkStatus 409 "unable to parse PUT response"
         )
     else return (Left (responseStatus resp))
-
 
 parseBSOne :: FromJSON a => BSL.ByteString -> Maybe a
 parseBSOne bs =
@@ -442,14 +443,9 @@ gitlabPutBuilder urlPath bodyBuilder = do
   resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
   if successStatus (responseStatus resp)
     then
-    -- TODO
-      return undefined
-        {-
+      return
         ( case parseBSOne (responseBody resp) of
-            Just x -> undefined -- Right x
-            Nothing ->
-              undefined -- Left $ mkStatus 409 "unable to parse PUT response"
+            Just x -> PutRequestSuccess x
+            Nothing -> PutFailure $ mkStatus 409 "unable to parse PUT response"
         )
-        -}
-        -- TODO
-    else return undefined -- (Left (responseStatus resp))
+    else return (PutFailure (responseStatus resp))
