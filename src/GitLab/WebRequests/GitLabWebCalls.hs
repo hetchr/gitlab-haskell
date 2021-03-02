@@ -419,13 +419,7 @@ gitlabReqJsonManyBuilder urlPath body =
             else go (i + 1) accum'
         else return (GHttpFailure (responseStatus resp))
 
-gitlabPutBuilder' ::
-  FromJSON a =>
-  -- | the URL to post to
-  RelativeUrl ->
-  -- | the data to post
-  BodyBuilder ->
-  GitLab (PutResult ())
+gitlabPutBuilder' :: RelativeUrl -> BodyBuilder -> GitLab (PutResult ())
 gitlabPutBuilder' urlPath bodyBuilder = do
   cfg <- serverCfg <$> ask
   manager <- httpManager <$> ask
