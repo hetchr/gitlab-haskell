@@ -21,7 +21,7 @@ module GitLab.WebRequests.GitLabWebCalls
     GetResult (..),
     RelativeUrl (..),
     gitlabReqJsonManyBuilder,
-    gitlabPutBuilder,
+    gitlabPutBuilder',
     gitlabPostBuilder', -- this is the new one
     buildFields,
   )
@@ -60,7 +60,7 @@ data PostResult a
     (Eq, Show)
 
 data PutResult a
-  = PutNoResponse
+  = PutIgnoringPayload
   | PutFailure Status
   | PutRequestSuccess a
 
@@ -419,14 +419,14 @@ gitlabReqJsonManyBuilder urlPath body =
             else go (i + 1) accum'
         else return (GHttpFailure (responseStatus resp))
 
-gitlabPutBuilder ::
+gitlabPutBuilder' ::
   FromJSON a =>
   -- | the URL to post to
   RelativeUrl ->
   -- | the data to post
   BodyBuilder ->
-  GitLab (PutResult a)
-gitlabPutBuilder urlPath bodyBuilder = do
+  GitLab (PutResult ())
+gitlabPutBuilder' urlPath bodyBuilder = do
   cfg <- serverCfg <$> ask
   manager <- httpManager <$> ask
   let url' = url cfg <> "/api/v4" <> relativeUrl urlPath
@@ -442,10 +442,5 @@ gitlabPutBuilder urlPath bodyBuilder = do
           }
   resp <- liftIO $ tryGitLab 0 request (retries cfg) manager Nothing
   if successStatus (responseStatus resp)
-    then
-      return
-        ( case parseBSOne (responseBody resp) of
-            Just x -> PutRequestSuccess x
-            Nothing -> PutFailure $ mkStatus 409 "unable to parse PUT response"
-        )
+    then return PutIgnoringPayload
     else return (PutFailure (responseStatus resp))
