@@ -19,12 +19,13 @@ module GitLab.Types
     ArchiveFormat (..),
     Member (..),
     Namespace (..),
-    Reviewer(..),
+    Reviewer (..),
     Links (..),
     Owner (..),
     Permissions (..),
     ProjectId,
     Project (..),
+    ProjectSummary (..),
     ProjectStats (..),
     User (..),
     Milestone (..),
@@ -234,6 +235,13 @@ data Project = Project
     merge_method :: Maybe Text,
     permissions :: Maybe Permissions,
     project_stats :: Maybe ProjectStats
+  }
+  deriving (Generic, Show)
+
+-- | project summaries.
+data ProjectSummary = ProjectSummary
+  { summary_project_id :: Int,
+    summary_project_name :: Text
   }
   deriving (Generic, Show)
 
@@ -542,17 +550,17 @@ data MergeRequest = MergeRequest
   deriving (Generic, Show)
 
 data Reviewer = Reviewer
-   { reviewerId :: Int
-   , reviewerName :: Text
-   , reviewerUserName :: Text
-   , reviewerState :: Text
-   , reviewerAvatarUrl :: Text
-   , reviewerWebUrl :: Text
-   }
+  { reviewerId :: Int,
+    reviewerName :: Text,
+    reviewerUserName :: Text,
+    reviewerState :: Text,
+    reviewerAvatarUrl :: Text,
+    reviewerWebUrl :: Text
+  }
   deriving
-    (Show
-    ,Eq
-    ,Generic
+    ( Show,
+      Eq,
+      Generic
     )
 
 {-
@@ -566,14 +574,14 @@ data Reviewer = Reviewer
   }],
 -}
 instance FromJSON Reviewer where
-  parseJSON (Object v) = 
+  parseJSON (Object v) =
     Reviewer
-        <$> v .: "id"
-        <*> v .: "name"
-        <*> v .: "username"
-        <*> v .: "state"
-        <*> v .: "avatar_url"
-        <*> v .: "web_url"
+      <$> v .: "id"
+      <*> v .: "name"
+      <*> v .: "username"
+      <*> v .: "state"
+      <*> v .: "avatar_url"
+      <*> v .: "web_url"
 
 -- | TODO actions.
 data TodoAction
@@ -767,6 +775,8 @@ bodyNoPrefix "project_name" = "name"
 bodyNoPrefix "project_path" = "path"
 bodyNoPrefix "project_path_with_namespace" = "path_with_namespace"
 bodyNoPrefix "project_web_url" = "web_url"
+bodyNoPrefix "summary_project_id" = "id"
+bodyNoPrefix "summary_project_name" = "name"
 bodyNoPrefix "repository_id" = "id"
 bodyNoPrefix "repository_name" = "name"
 bodyNoPrefix "repository_path" = "path"
@@ -983,6 +993,14 @@ instance FromJSON Namespace where
       )
 
 instance FromJSON Project where
+  parseJSON =
+    genericParseJSON
+      ( defaultOptions
+          { fieldLabelModifier = bodyNoPrefix
+          }
+      )
+
+instance FromJSON ProjectSummary where
   parseJSON =
     genericParseJSON
       ( defaultOptions

@@ -31,6 +31,10 @@ allProjects :: GitLab [Project]
 allProjects =
   gitlabWithAttrsUnsafe (RelativeUrl "/projects") "&statistics=true"
 
+allProjectsSummary :: GitLab [ProjectSummary]
+allProjectsSummary =
+  gitlabWithAttrsUnsafe (RelativeUrl "/projects") "&statistics=true"
+
 -- | gets all forks of a project. Supports use of namespaces.
 --
 -- > projectForks "project1"
