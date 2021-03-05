@@ -31,9 +31,9 @@ allProjects :: GitLab [Project]
 allProjects =
   gitlabWithAttrsUnsafe (RelativeUrl "/projects") "&statistics=true"
 
-allProjectsSummary :: GitLab [ProjectSummary]
-allProjectsSummary =
-  gitlabWithAttrsUnsafe (RelativeUrl "/projects") "&statistics=true"
+allMaintainableProjectsSummary :: GitLab [ProjectSummary]
+allMaintainableProjectsSummary =
+  gitlabWithAttrsUnsafe (RelativeUrl "/projects") "&min_access_level=40"
 
 -- | gets all forks of a project. Supports use of namespaces.
 --
