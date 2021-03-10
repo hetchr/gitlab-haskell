@@ -74,7 +74,7 @@ projectsWithName projectName =
 
 -- | gets a project with the given name for the given username. E.g.
 --
--- > projectsNamespaceName "user1" "project1"
+-- > projectsWithNameAndUser "user1" "project1"
 --
 -- looks for "user1/project1"
 projectsWithNameAndUser :: Text -> Text -> GitLab (Either Status (Maybe Project))

@@ -24,6 +24,7 @@ module GitLab
     module GitLab.API.MergeRequests,
     module GitLab.API.Repositories,
     module GitLab.API.RepositoryFiles,
+    module GitLab.API.Tags,
     module GitLab.API.Todos,
     module GitLab.API.Version,
     module GitLab.API.Notes,
@@ -49,6 +50,7 @@ import GitLab.API.Pipelines
 import GitLab.API.Projects
 import GitLab.API.Repositories
 import GitLab.API.RepositoryFiles
+import GitLab.API.Tags
 import GitLab.API.Todos
 import GitLab.API.Users
 import GitLab.API.Version

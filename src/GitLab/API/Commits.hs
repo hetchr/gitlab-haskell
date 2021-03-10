@@ -45,9 +45,10 @@ branchCommits ::
   Project ->
   -- | branch name
   Text ->
-  GitLab (Either Status [Commit])
-branchCommits project =
-  branchCommits' (project_id project)
+  GitLab [Commit]
+branchCommits project branchName = do
+  result <- branchCommits' (project_id project) branchName
+  return (fromRight [] result)
 
 -- | returns all commits of a branch from a project
 -- given its project ID and the branch name.
@@ -74,7 +75,7 @@ commitDetails ::
   GitLab (Maybe Commit)
 commitDetails project theHash = do
   result <- commitDetails' (project_id project) theHash
-  return (fromRight (error "commitDetails error") result)
+  return (fromRight Nothing result)
 
 -- | returns a commit for the given project ID and commit hash, if
 -- such a commit exists.

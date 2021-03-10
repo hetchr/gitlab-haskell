@@ -74,6 +74,7 @@ library
                 , GitLab.API.Repositories
                 , GitLab.API.MergeRequests
                 , GitLab.API.RepositoryFiles
+                , GitLab.API.Tags
                 , GitLab.API.Todos
                 , GitLab.API.Version
                 , GitLab.API.Notes

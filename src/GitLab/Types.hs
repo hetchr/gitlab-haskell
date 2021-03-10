@@ -37,6 +37,7 @@ module GitLab.Types
     Commit (..),
     CommitTodo (..),
     CommitStats (..),
+    Tag (..),
     Diff (..),
     Repository (..),
     Job (..),
@@ -162,7 +163,7 @@ data Namespace = Namespace
 data Links = Links
   { self :: Text,
     issues :: Maybe Text,
-    merge_requests :: Text,
+    merge_requests :: Maybe Text,
     repo_branches :: Text,
     link_labels :: Text,
     link_events :: Text,
@@ -386,6 +387,23 @@ data CommitStats = Stats
   { additions :: Int,
     deletions :: Int,
     total :: Int
+  }
+  deriving (Generic, Show)
+
+-- | tags.
+data Tag = Tag
+  { tag_commit :: Commit,
+    tag_release :: Maybe Release,
+    tag_name :: Text,
+    tag_target :: Text,
+    tag_message :: Maybe Text,
+    tag_protected :: Bool
+  }
+  deriving (Generic, Show)
+
+data Release = Release
+  { release_tag_name :: Text,
+    release_description :: Text
   }
   deriving (Generic, Show)
 
@@ -896,6 +914,24 @@ bodyNoPrefix "note_resolvable" = "resolvable"
 -- TODO field names for Issues data type
 bodyNoPrefix s = s
 
+-- TODO refactor bodyNoPrefix function above into smaller
+--    String -> String
+-- functions like those below.
+
+tagPrefix :: String -> String
+tagPrefix "tag_commit" = "commit"
+tagPrefix "tag_release" = "release"
+tagPrefix "tag_name" = "name"
+tagPrefix "tag_target" = "target"
+tagPrefix "tag_message" = "message"
+tagPrefix "tag_protected" = "protected"
+tagPrefix s = s
+
+releasePrefix :: String -> String
+releasePrefix "release_tag_name" = "tag_name"
+releasePrefix "release_description" = "description"
+releasePrefix s = s
+
 instance FromJSON TimeStats where
   parseJSON =
     genericParseJSON
@@ -933,6 +969,22 @@ instance FromJSON CommitTodo where
     genericParseJSON
       ( defaultOptions
           { fieldLabelModifier = bodyNoPrefix
+          }
+      )
+
+instance FromJSON Tag where
+  parseJSON =
+    genericParseJSON
+      ( defaultOptions
+          { fieldLabelModifier = tagPrefix
+          }
+      )
+
+instance FromJSON Release where
+  parseJSON =
+    genericParseJSON
+      ( defaultOptions
+          { fieldLabelModifier = releasePrefix
           }
       )
 
